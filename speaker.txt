@@ -1,0 +1,240 @@
+hi 我是 tka
+
+今天要分享的內容是如何用 golang 幫 ruby 專案加速
+
+先自我介紹一下背景
+
+我專長是網站開發, 之前主要使用 Rails, 去年開始使用 golang 進行網站開發
+
+部落格是 blog.tka.lu, 要聯絡我的話可以透過 twitter account @tkalu
+
+今天的分享主要會放在幾點上
+
+1. golang share library 的簡介
+2. 使用 ruby-ffi 呼叫 golang 的方法
+3. 比較貼近實際使用的例子
+
+先快速的簡介一下 golang
+
+靜態/強型別/需編譯/內建GC
+
+有很萌的吉祥物
+
+現狀大約在一個月前 2015 年 8 月 19 發表了 1.5 版
+
+這邊有官方簡單的 Release Note 跟下載連結
+
+其中一個重要的功能建立 shared library(.so .dll) 讓其他程式呼叫
+
+透過 go help build 這個指令可以看使用的方式, 這邊要選擇的 buildmode 是 c-shared
+
+在這個功能發表之後像是解除了某種封印, 於是各種使用的文章紛紛出爐
+
+ptyhon 有 https://blog.filippo.io/building-python-modules-with-go-1-5/
+
+firefox 也有 http://id-rsa.pub/post/go15-calling-go-shared-libs-from-firefox-addon/
+
+當然 ruby 也有 http://c7.se/go-and-ruby-ffi/
+
+先看一下 golang 的部份要怎麼寫
+
+這是一個利用 golang 計算加法的程式, 輸入兩個整數, 回傳相加的結果
+
+重點在跟一般的 golang 程式比起來需要 import C,
+
+同時可以被外部呼叫的 Function 需要加上一行註解, 像是這邊的 export add
+
+沒有加這行的話將無法從外部呼叫
+
+再來我們透過下面這行指令進行編譯, 編譯完之後可以拿到一個 .so 檔跟 .h 檔
+
+其中 .h 檔內會清楚紀錄 Go 的型別與 C 的型別轉換,
+
+例如 Golang 的 int 會對應到 GoInt64 最後對應到 C 的 long
+
+而 Golang 中的 string 則是有紀錄長度而不是遇到 \0 就結束
+
+同時也會紀錄有哪些 function 可以呼叫
+
+接下來說明一下如何從 ruby 呼叫 golang 編譯出來的 share library
+
+目前 ruby 呼叫 share library 常見的作法有 fiddle 跟 ruby-ffi 兩種
+
+ruby 2.0 的時候還有 dl, 不過 ruby 2.2 已經不存在了
+
+其中 fiddle 是 ruby stdlib 內建的 library
+
+ruby-ffi 則是 ruby 的 extenstion, 他同時可以支援 CRuby 跟 JRuby
+
+這邊直接講結論選 ruby-ffi 就對了
+
+原因主要有兩點
+
+1. 速度快, 以剛剛的範例來看 ruby-ffi  ruby ffi 大概是 fiddle 1.75 倍快
+
+1.  ruby-ffi 的文件跟語法都比較順, 所以這邊推薦用 ruby-ffi 來呼叫 golang
+
+這邊是 ruby-ffi 跟 fiddle 測試速度的程式
+
+接下來我們來看一下, 要如何用 ruby ffi 呼叫 golang 來做加法運算幫 ruby 加速
+
+首先開一個叫做 Go 的模組, extend FFI::Library, 並且表明要使用 libgo_example_1.so
+
+再宣告說有個叫做 add function 可以被呼叫, 輸入是兩的整數, 回傳一個整數
+
+之後我們就可以使用 Go.add(1,1) 來取得兩個整數相加的結果
+
+同時比較一下如果直接用 ruby 處理整數相加效能會差異多少
+
+這邊插花一下, 如果是用 python 的話對應的功能大概是 3 行寫完, 剛剛大概 ruby 花了 6~7 行吧
+
+結果揭曉, 純 ruby 比透過 ruby-ffi 用 golang 呼叫快了 18 倍
+
+這好像是說, 這邊這個 talk 可以下班了
+
+其實主要是因為 context switch 造成額外的效能耗損
+
+所以我們來看複雜一點的案例, 是不是真的 golang 可以提高專案效能
+
+目標是是取得第 n 項費氏級數的值,
+
+這是 golang 的部份, 透過遞迴來算出第 n 項的值
+
+這是 ruby 的部份, 計算的邏輯與 golang 的部份一樣
+
+benchmark 則是比較第 2,4,6,8,10,12,14 項的費氏級數, golang 與 ruby 所花費的時間
+
+看結果, 跟一開始的測試類類似, 運算量少的時候直接用 ruby 比較快
+
+運算量大了之後, 透過 ruby-ffi 呼叫 golang 可以增加十多倍的效能
+
+到這邊已經確認 ruby 呼叫 golang 的基本結構並且確實可以增進效能
+
+接下來我們再分享幾個開發上的例子
+
+第一個是關於字串傳遞的方式
+
+還記得一開始有提到 Golang 的 String 實做跟 C 其實不太一樣嗎
+
+但是其實我們再寫 Golang 的時候是可以選擇使用 C String 而不是預設的 String 格式
+
+來看一下這對開發以及效能有什麼影響
+
+這邊拿來做範例的是在網頁支援多種語系的時候
+
+透過瀏覽器傳來的 Accept-Language HTTP Header 找出最適當的語系
+
+例如網站支援中文/英文/日文時, 瀏覽器送來 Accept-Language 顯示日文優先的話, 網站應該輸出日文內容
+
+這邊有 Accept-Language 這個 HTTP Header 的 RFC 連結
+
+golang 跟 ruby 所使用的 library 分別是這兩個, 有興趣的朋友可以點進去看一下 library 的實際內容
+
+這邊我們直接看 code
+
+這是 golang 使用 library 取得適當語系的程式, 上面是使用 Golang String, 下面則是使用 C String 的格式
+
+可以看到下面那到 C String 之後要轉成 Golang String 後才可以餵給 golang 的 library 吃
+
+回傳的時候也要從 golang String 轉回 C String 的格式
+
+接下來看到 ruby 的部份, 如果要透過 ruby-ffi 傳遞 golang string 的格式時, 要自行定義一個 struct,
+
+分別紀錄字串的指標(pointer) 跟字串的長度
+
+如果是使用 C String 的格式傳遞, 就只需要直接寫 :string 就好了
+
+接下來先定義測試用的 Accept-Language 字串
+
+然後這邊有三個 function 分別是傳 golang string, 傳 c string, 用 ruby library 計算
+
+可以看到效能是 Golang + C String > Golang + String > Ruby
+
+C String 的版本比 Golang String 快的主要原因是需要在 ruby 內配置 struct 多花了一點時間
+
+總的來說在這的例子
+
+C String 的版本會比使用 Golang String 的版本快上約 20%
+
+接下來來看一下如果要傳遞 Array 到 golang 的處理方式
+
+這邊選的例子是有隨機產生的 100 個數字, 要計算總和
+
+golang 的部份, 會需要輸入兩個參數, 第一個是陣列的指標,  另外一個是陣列的長度
+
+然後透過設定 golang 的 reflect.SliceHeader 來做一些轉換
+
+之後就可以拿到 Go 的 Slice 來做操作
+
+然後 ruby 的部份, golang 的 int 其實是對應到 C 的 long long 這個型別
+
+所以這邊都指定 type 是 long long
+
+再來把 Go.sum 封裝一下, 這邊先透過 Ruby FFI 的 MemoryPointer 來建立出 C 的陣列指標
+
+然後把建立出來的指標跟陣列的長度傳給 golang 的funciton
+
+接下來隨機生出 100 個 1000 以內的亂數, 然後跑 benchmark
+
+結果是 golang 大概快了一倍
+
+再來看一下遇到 Ruby GC 的時候, 可能會發生的事情
+
+這邊是 golang 的部份, 這個 function 會每 0.5 印出 prefix 帶有 prefix 字串的時間戳記
+
+再來是 ruby 的部份
+
+這邊把 Go.printTime 包了一層, 然後從呼叫包裝過的 start_tick
+
+先等待 1 秒, 讓 golang 印出兩個 timestamp
+
+然後做一些東西, 好讓 ruby 的 GC 可以順利觸發
+
+手動觸發 GC, 然後再等 1 秒, 讓 golang 印出兩個內容
+
+結果就會像是, 前兩個看起來很正常
+
+但是遇到 ruby GC 後, 輸出的內容就出現問題了
+
+更多關於記憶體管理的資訊可以參考 Ruby FFI 的文件
+
+如果還有時間, 最後來看一個比較有趣的例子,
+
+這邊會比較純 ruby, ruby 搭 golang, ruby c extension 三種方法轉換 markdown 的效率
+
+一樣先看 code, 這邊只是用 golang 很簡單的把 library 包裝一下方便呼叫
+
+再來是 ruby 測試的部份, 分別把五個 library 針對同樣的 markdown 去處理
+
+結果是 C extension 的版本大概是 Ruby 的 100 倍快
+
+Golang 兩個實做則有不小的差異, 但是都比 C 慢了不少, 其中表現比較好的大概是 Ruby 的 30 倍快
+
+當然這個測試其實不太公平, 畢竟每個 library 處理 markdown 的內容不太一樣,
+
+不過還是可以作為一個參考指標, 就是如果有想要實做的演算法或是功能已經有人用 C 實做過了
+
+不管是透過 ruby ffi 或是 c extension , 除非很有把握可以寫的比較快, 不然可以考慮直接用了. 不需要自己再寫一次
+
+但是如果是專案要用的複雜功能, 到是可以用 golang 來幫忙加速, 應該可以獲得不錯的結果
+
+今天的分享就到這個地方, 謝謝大家～
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,16 @@
+def use_go
+  x = LibGo::GoString.new
+  x[:p] = FFI::MemoryPointer.from_string(@lang)
+  x[:n] = @lang.length
+  result =  LibGo.preferredLanguageFrom( x )
+  result[:p].get_string(0, result[:n])
+end
+
+def use_go_cstring
+  LibGo.preferredLanguageFromUseCString( @lang )
+end
+
+def use_ruby
+  parser = HttpAcceptLanguage::Parser.new(@lang)
+  parser.preferred_language_from( @availables )
+end

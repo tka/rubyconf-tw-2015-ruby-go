@@ -1,0 +1,217 @@
+如何用 golang 幫 ruby 專案加速
+
+12 Sep 2015
+Tags: ruby, golang
+
+tka
+http://blog.tka.lu
+@tkalu
+
+* Golang
+
+* Golang
+
+- Static
+- Strong Typing
+- Need Compile
+- GC
+
+* Gopher
+
+.image https://golang.org/doc/gopher/frontpage.png
+
+
+* Now
+
+.link https://blog.golang.org/go1.5 2015/08/19 Go 1.5 is released
+.link https://golang.org/dl/ Download
+
+* Share Library
+
+    go help build
+
+    -buildmode=c-shared
+
+    Build the listed main packages, plus all packages that they
+    import, into C shared libraries. The only callable symbols will
+    be those functions marked as exported. Non-main packages are
+    ignored.
+
+* Python
+
+.link https://blog.filippo.io/building-python-modules-with-go-1-5/ BUILDING PYTHON MODULES WITH GO 1.5
+
+
+* FireFox
+
+.link http://id-rsa.pub/post/go15-calling-go-shared-libs-from-firefox-addon/ Go 1.5: Calling Go shared libraries from Firefox addons
+
+* Ruby
+
+.link http://c7.se/go-and-ruby-ffi/ Go and Ruby-FFI
+
+* Golang Example
+
+.code libgo_example_1.go
+
+* Build
+
+    go build -buildmode=c-shared -o libgo_example_1.so libgo_example_1.go
+
+* libgo_example_1.h
+  typedef signed char GoInt8;
+  typedef unsigned char GoUint8;
+  typedef short GoInt16;
+  typedef unsigned short GoUint16;
+  typedef int GoInt32;
+  typedef unsigned int GoUint32;
+  typedef long long GoInt64;
+  typedef unsigned long long GoUint64;
+  typedef GoInt64 GoInt;
+  typedef GoUint64 GoUint;
+  ...
+  typedef struct { char *p; GoInt n; } GoString;
+  ...
+  extern GoInt add(GoInt p0, GoInt p1);
+
+* Fiddle vs Ruby-FFI
+
+.link http://ruby-doc.org/stdlib-2.0.0/libdoc/fiddle/rdoc/Fiddle.html Fiddle
+.link https://github.com/ffi/ffi Ruby-FFI
+
+* Ruby FFI
+
+.link https://github.com/ffi/ffi https://github.com/ffi/ffi
+
+Ruby-FFI is a ruby extension for programmatically loading dynamic libraries, binding functions within them, and calling those functions from Ruby code. Moreover, a Ruby-FFI extension works without changes on Ruby and JRuby.
+
+
+* 選 Ruby-FFI 就對了
+
+- 速度快
+  以剛剛的範例來說大概是 Fiddle 的 1.75 倍快
+  benchmark 請參考 ruby-fiddle-vs-ffi.rb
+- 文件完整語法順眼
+  .link https://github.com/ffi/ffi/wiki Ruby-FFI wiki
+
+* Ruby-FFI vs Fiddle Benchmark
+
+.code ruby-fiddle-vs-ffi.rb
+
+* Ruby Example
+
+.code libgo_example_1.rb
+
+* 插花 python
+
+   import ctypes
+   lib = ctypes.CDLL("././libgo_example_1.so")
+   lib.add(1, 1)
+
+
+
+* Benchmark Result
+
+          user       system      total        real
+  golang  0.690000   0.210000   0.900000 (  0.906927)
+  ruby    0.050000   0.000000   0.050000 (  0.048154)
+
+ruby 的速度是 golang 的 18 倍快!
+
+* 複雜一點-費氏級數
+
+  0,1,1,2,3,5,8,13....
+
+* 費氏級數 Golang
+
+.code libgo_example_2.go
+
+* 費氏級數 Ruby
+
+.code libgo_example_2.rb
+
+* Benchmark Result
+
+.code libgo_example_2.result
+
+* GoString or CString
+
+* Example: 從 Accept-Language 比對適合的語系
+
+.link http://www.ietf.org/rfc/rfc2616.txt RFC2616 #14.4 Accept-Language
+.link https://godoc.org/golang.org/x/text/language Golang library
+.link https://github.com/iain/http_accept_language
+
+* Example: 從 Accept-Language 比對適合的語系
+
+.code libgo_example_3.go.partial
+
+* Example: 從 Accept-Language 比對適合的語系
+
+.code libgo_example_3.rb.partial.1
+
+* Example: 從 Accept-Language 比對適合的語系
+
+.code libgo_example_3.rb.partial.2
+
+* Result
+
+              user       system      total        real
+    GoString  1.130000   0.060000   1.190000 (  1.082022)
+    CString   0.970000   0.020000   0.990000 (  0.884759)
+    Ruby      1.420000   0.000000   1.420000 (  1.419893)
+
+* Array
+
+* Array - Golang
+
+.code libgo_example_array.go
+
+.link https://github.com/golang/go/wiki/cgo#turning-c-arrays-into-go-slices Turning C arrays into Go slices
+
+* Array - Ruby
+
+.code libgo_example_array.rb
+
+* Array - Benchmark
+
+.code libgo_example_array.result
+
+* Garbage collection
+
+* Garbage collection - Golang
+
+.code libgo_example_gc.go
+
+* Garbage collection - Ruby
+
+.code libgo_example_gc.rb
+
+* Garbage collection - Result
+
+.code libgo_example_gc.result
+
+.link https://github.com/ffi/ffi/wiki/Core-Concepts#memory-management Ruby-FFI Wiki
+
+* Bonus
+
+* Markdown
+
+.link http://kramdown.gettalong.org/ kramdown, pure ruby
+.link https://rubygems.org/gems/github-markdown github-markdown, C extenstion
+.link https://github.com/vmg/redcarpet redcarpet, C extenstion
+.link https://github.com/russross/blackfriday blackfriday
+.link https://github.com/shurcooL/github_flavored_markdown github_flavored_markdown
+
+* Markdown - Golang
+
+.code libgo_example_gfm.go
+
+* Markdown - Ruby
+
+.code libgo_example_gfm.rb.partial
+
+* Markdown - result
+
+.code libgo_example_gfm.result
+
