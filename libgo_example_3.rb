@@ -35,8 +35,8 @@ end
 
 n=100000
 
-Benchmark.bm do |x|
+Benchmark.bmbm do |x|
+  x.report("Ruby"){ n.times{ use_ruby() }}
   x.report("GoString"){ n.times{ use_go() }}
   x.report("CString"){ n.times{ use_go_cstring() }}
-  x.report("Ruby"){ n.times{ use_ruby() }}
 end

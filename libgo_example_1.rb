@@ -8,7 +8,7 @@ module Go
 end
 
 n=1000000
-Benchmark.bm do |x|
+Benchmark.bmbm do |x|
   x.report("golang") { n.times{ Go.add(1,1) }}
   x.report("ruby"){ n.times{ 1+1 }}
 end

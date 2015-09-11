@@ -18,7 +18,7 @@ fiddle_add = Fiddle::Function.new(
 )
 
 n=1000000
-Benchmark.bm do |x|
+Benchmark.bmbm(10) do |x|
   x.report("fiddle") { n.times{ fiddle_add.call(1,1) }}
   x.report("ffi"){ n.times{ FFILib.add(1,1)  }}
 end
